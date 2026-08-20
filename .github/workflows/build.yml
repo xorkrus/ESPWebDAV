@@ -1,58 +1,43 @@
-name: Build ESPWebDAV
+name: Build ESPWebDAV (ESP8266)
 
 on:
   push:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  workflow_dispatch: # Позволяет запустить сборку вручную через кнопку в GitHub
+  workflow_dispatch: # Ручной запуск
 
 jobs:
   build:
-    name: Build for ${{ matrix.environment }}
+    name: Compile for ESP8266
     runs-on: ubuntu-latest
-    
-    strategy:
-      fail-fast: false # Если одна платформа упадет, другие продолжат сборку
-      matrix:
-        # Укажи здесь названия environments из твоего файла platformio.ini
-        # Обычно для этого проекта используются esp32dev и esp12e (ESP8266)
-        environment:
-          - esp8525
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        # Раскомментируй строку ниже, если makeEspArduino.mk подключен как сабмодуль (submodule)
+        # submodules: recursive
 
-      - name: Cache PlatformIO
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.platformio
-            .pio/libdeps
-            .pio/cache
-          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
-          restore-keys: |
-            ${{ runner.os }}-pio-
+      - name: Install Arduino CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+      - name: Setup Arduino Core for ESP8266
+        run: |
+          ./bin/arduino-cli config init
+          ./bin/arduino-cli core update-index
+          # Добавляем ссылку на ядра ESP8266
+          ./bin/arduino-cli config set board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+          # Устанавливаем ядро ESP8266
+          ./bin/arduino-cli core install esp8266:esp8266
 
-      - name: Install PlatformIO
-        run: pip install --upgrade platformio
-
-      - name: Build firmware
-        run: pio run -e ${{ matrix.environment }}
+      - name: Run Make (makeEspArduino)
+        run: make
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
-          name: firmware_${{ matrix.environment }}
-          # Путь к скомпилированным файлам. 
-          # В PlatformIO они лежат в папке .pio/build/<имя_окружения>/
-          path: |
-            .pio/build/${{ matrix.environment }}/firmware.bin
-            .pio/build/${{ matrix.environment }}/partitions.bin
-          if-no-files-found: error
+          name: esp8266_firmware
+          # makeEspArduino по умолчанию складывает всё в папку build/
+          path: build/*.bin
+          if-no-files-found: warn

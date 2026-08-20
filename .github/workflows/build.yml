@@ -19,29 +19,26 @@ jobs:
         run: |
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 
-      - name: Setup ESP8266 Core
+      - name: Setup ESP8266 Core (Legacy 2.7.4)
         run: |
           ./bin/arduino-cli config init
           ./bin/arduino-cli core update-index
           ./bin/arduino-cli config set board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
-          ./bin/arduino-cli core install esp8266:esp8266
+          # УСТАНАВЛИВАЕМ СТАРУЮ ВЕРСИЮ 2.7.4, С КОТОРОЙ СОВМЕСТИМ КОД
+          ./bin/arduino-cli core install esp8266:esp8266@2.7.4
 
       - name: Install dependencies
         run: |
-          # Устанавливаем библиотеку WebSockets (она точно нужна для WebDAV)
           ./bin/arduino-cli lib install "WebSockets"
 
       - name: Compile Sketch
         run: |
-          # Собираем скетч. 
-          # Если твой файл называется не ESPWebDAV.ino, поменяй имя здесь.
-          # generic — это универсальная плата ESP8266 (подойдет для 8285 тоже).
           ./bin/arduino-cli compile --fqbn esp8266:esp8266:generic ESPWebDAV.ino
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: esp8266_firmware
-          # Arduino CLI складывает готовый .bin в специфическую папку
+          # В версии 2.7.4 папка билда называется немного иначе
           path: build/esp8266.esp8266.generic/ESPWebDAV.ino.bin
           if-no-files-found: warn

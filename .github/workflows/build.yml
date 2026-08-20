@@ -1,43 +1,47 @@
-name: Build ESPWebDAV (ESP8266)
+name: Build ESPWebDAV (Arduino CLI)
 
 on:
   push:
     branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
-  workflow_dispatch: # Ручной запуск
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Compile for ESP8266
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        # Раскомментируй строку ниже, если makeEspArduino.mk подключен как сабмодуль (submodule)
-        # submodules: recursive
 
       - name: Install Arduino CLI
         run: |
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 
-      - name: Setup Arduino Core for ESP8266
+      - name: Setup ESP8266 Core
         run: |
           ./bin/arduino-cli config init
           ./bin/arduino-cli core update-index
-          # Добавляем ссылку на ядра ESP8266
           ./bin/arduino-cli config set board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
-          # Устанавливаем ядро ESP8266
           ./bin/arduino-cli core install esp8266:esp8266
 
-      - name: Run Make (makeEspArduino)
-        run: make
+      - name: Install dependencies
+        run: |
+          # Устанавливаем библиотеку WebSockets (она точно нужна для WebDAV)
+          ./bin/arduino-cli lib install "WebSockets"
+
+      - name: Compile Sketch
+        run: |
+          # Собираем скетч. 
+          # Если твой файл называется не ESPWebDAV.ino, поменяй имя здесь.
+          # generic — это универсальная плата ESP8266 (подойдет для 8285 тоже).
+          ./bin/arduino-cli compile --fqbn esp8266:esp8266:generic ESPWebDAV.ino
 
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: esp8266_firmware
-          # makeEspArduino по умолчанию складывает всё в папку build/
-          path: build/*.bin
+          # Arduino CLI складывает готовый .bin в специфическую папку
+          path: build/esp8266.esp8266.generic/ESPWebDAV.ino.bin
           if-no-files-found: warn
